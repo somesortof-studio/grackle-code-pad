@@ -13,8 +13,12 @@
     }
   ],
   "suffix": ".res.mjs",
-  "bs-dependencies": ["@rescript/core", "@rescript/react"],
-  "bsc-flags": ["-open RescriptCore"],
+  "bs-dependencies": [
+    "@rescript/core",
+    "@rescript/react",
+    "@glennsl/rescript-fetch"
+  ],
+  "bsc-flags": ["-open RescriptCore", "-open Fetch"],
   "jsx": {
     "version": 4
   }

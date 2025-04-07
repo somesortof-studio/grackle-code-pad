@@ -7,7 +7,24 @@ module LocalStorage = {
 }
 
 let selectionKey = "__selection__"
-let runProgram = (runner: string => string, _program: string): string => runner(_program)
+let runProgram = (runner: Runtimes.runtime, _program: string): promise<result<string, string>> =>
+  runner.eval(_program)
+
+let formatOutput = (r: result<string, string>): string => {
+  switch r {
+  | Ok(o) => o
+  | Error(e) => String.concat("Error!: ", e)
+  }
+}
+
+let loadRuby = (recordRunner: Runtimes.runtime => unit) => {
+  RubyWasm.loadRubyVm()
+  ->Promise.then(vm => Promise.resolve(RubyWasm.wrapRubyVm(vm)))
+  ->Promise.then(runner => {
+    recordRunner(runner)
+    Promise.resolve(None)
+  })
+}
 
 @react.component
 let make = () => {
@@ -19,12 +36,7 @@ let make = () => {
   let (output, setOutput) = React.useState(() => "")
 
   React.useEffect0(() => {
-    let loadRuby = () =>
-      RubyWasm.makeRuby()->Promise.then(vmr => {
-        setRunner(_ => Some(vmr))
-        Promise.resolve(None)
-      })
-    loadRuby()
+    loadRuby(runner => setRunner(_ => Some(runner)))
     ->Promise.catch(e => {
       Console.warn(e)
       Promise.resolve(None)
@@ -34,31 +46,65 @@ let make = () => {
   })
 
   <div className="p-6">
+    <h1 className="text-xl font-bold"> {"🐦‍⬛ Grackle"->React.string} </h1>
+    <Separator />
     // Selection context
     // -----------------
-    <h2 className="text-xl font-semibold"> {"Selection"->React.string} </h2>
-    <SelectionView selection={selection} />
-    <Button
-      onClick={_ => {
-        LocalStorage.removeItem(selectionKey)
-        setSelection(_ => "")
-      }}>
-      {"Clear"->React.string}
-    </Button>
+    // TODO: make selection only work on Chrome extensions
+    <details>
+      <summary>
+        <span className="text-l italic font-semibold"> {"Selection"->React.string} </span>
+      </summary>
+      <SelectionView selection={selection} />
+      <Button
+        onClick={_ => {
+          LocalStorage.removeItem(selectionKey)
+          setSelection(_ => "")
+        }}>
+        {"Clear"->React.string}
+      </Button>
+    </details>
     // Code panel
     // ----------
+    // TODO: make runtimes selectable
     <Separator />
     <h2 className="text-xl font-semibold"> {"Editor"->React.string} </h2>
+    <div className="cm-tooltipped group-hover:*:bg-gray-100">
+      <p className="font-mono text-xs italic text-gray-400">
+        {String.concat(
+          ">> ",
+          runner->Option.mapOr("loading ...", r => r.metadata.title),
+        )->React.string}
+      </p>
+      <span className="cm-tooltip">
+        {runner->Option.mapOr(<p />, someRunner =>
+          <a target="_blank" href={someRunner.metadata.hint->Option.mapOr("...", h => h.homepage)}>
+            <p className="font-mono text-xs italic text-gray-200">
+              {":- homepage"->React.string}
+            </p>
+          </a>
+        )}
+      </span>
+    </div>
     // TODO: add documentation widget
     <CodeEditor
       _value={program}
       _onChange={program' => setProgram(_ => program')}
-      _highlightGrammar={"ruby"}
-      _highlightLanguage={"ruby"}
+      _highlightGrammar={runner
+      ->Option.flatMap(r => r.metadata.prismJs)
+      ->Option.mapOr("clike", p => p.grammar)}
+      _highlightLanguage={runner
+      ->Option.flatMap(r => r.metadata.prismJs)
+      ->Option.mapOr("clike", p => p.language)}
     />
+    // TODO: allow running on key press too
     <Button
       onClick={_ =>
-        setOutput(_ => Option.getOr(Option.map(runner, r => runProgram(r.eval, program)), ""))}>
+        Option.map(runner, r =>
+          runProgram(r, program)->Promise.then(output =>
+            Promise.resolve(setOutput(_ => formatOutput(output)))
+          )
+        )->ignore}>
       {"Run"->React.string}
     </Button>
     // Outputs
