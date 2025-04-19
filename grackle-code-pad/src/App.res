@@ -53,7 +53,7 @@ let make = () => {
     // TODO: make selection only work on Chrome extensions
     <details>
       <summary>
-        <span className="text-l italic font-semibold"> {"Selection"->React.string} </span>
+        <span className="text-l italic font-semibold"> {"Context"->React.string} </span>
       </summary>
       <SelectionView selection={selection} />
       <Button
@@ -109,8 +109,15 @@ let make = () => {
     </Button>
     // Outputs
     // -------
+    // TODO: make prettier and better output styling
     <Separator />
     <h2 className="text-xl font-semibold"> {"Output"->React.string} </h2>
     <ResultView result={output} />
+    <Button
+      onClick={_ => {
+        setOutput(_ => "")
+      }}>
+      {"Clear"->React.string}
+    </Button>
   </div>
 }
