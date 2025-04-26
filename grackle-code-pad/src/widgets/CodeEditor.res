@@ -38,7 +38,7 @@ type codeEditorProps = {
 @react.component(: codeEditorProps)
 let make = (~_value, ~_onChange, ~_highlightGrammar, ~_highlightLanguage) => {
   <Editor
-    className="w-full h-64 resize:vertical rounded-md border-2 border-gray-600 mb-2 mt-1 text-mono"
+    className="w-full min-h-64 rounded-md border-2 border-gray-600 mb-2 mt-1 text-mono"
     value={_value}
     onValueChange={_onChange}
     highlight={_ =>
