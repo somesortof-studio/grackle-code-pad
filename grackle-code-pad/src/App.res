@@ -6,9 +6,25 @@ module LocalStorage = {
   external getItem: string => option<string> = "getItem"
 }
 
+let getAllKeys: (dict<'a>, array<string>) => array<'a> = (dict, keys) =>
+  keys
+  ->Js.Array2.map(Js.Dict.get(dict))
+  ->Js.Array2.filter(Option.isSome)
+  ->Js.Array2.map(o => Option.getExn(o))
+
+module Keybindings = {
+  type keyboardKey = string
+  type keyboardKeysMap = dict<keyboardKey>
+  type keybindingProps = {cmd: array<keyboardKey>, callback: unit => unit}
+
+  @module("@harshsinghatz/react-key-bindings")
+  external keys: keyboardKeysMap = "keyboardKeys"
+
+  @module("@harshsinghatz/react-key-bindings")
+  external use: array<keybindingProps> => unit = "useKeybindings"
+}
+
 let selectionKey = "__selection__"
-let runProgram = (runner: Runtimes.runtime, _program: string): promise<result<string, string>> =>
-  runner.eval(_program)
 
 let formatOutput = (r: result<string, string>): string => {
   switch r {
@@ -25,6 +41,18 @@ let loadRuby = (recordRunner: Runtimes.runtime => unit) => {
     Promise.resolve(None)
   })
 }
+
+let evaluate = (runner: Runtimes.runtime, _program: string): promise<result<string, string>> =>
+  runner.eval(_program)
+
+let runProgram = (
+  runner: option<Runtimes.runtime>,
+  program: string,
+  handle: result<string, string> => unit,
+) =>
+  Option.map(runner, r =>
+    evaluate(r, program)->Promise.then(output => Promise.resolve(handle(output)))
+  )->ignore
 
 @react.component
 let make = () => {
@@ -44,6 +72,15 @@ let make = () => {
     ->ignore
     None
   })
+
+  let execute = _ => runProgram(runner, program, o => setOutput(_ => formatOutput(o)))
+
+  Keybindings.use([
+    {
+      cmd: getAllKeys(Keybindings.keys, ["Control", "Shift", "Slash"]),
+      callback: execute,
+    },
+  ])
 
   <div className="p-6">
     <h1 className="text-xl font-bold"> {"🐦‍⬛ Grackle"->React.string} </h1>
@@ -70,6 +107,7 @@ let make = () => {
     <Separator />
     <h2 className="text-xl font-semibold"> {"Editor"->React.string} </h2>
     <div className="cm-tooltipped group-hover:*:bg-gray-100">
+      // TODO: add a tooltip on running with hotkeys
       <p className="font-mono text-xs italic text-gray-400">
         {String.concat(
           ">> ",
@@ -97,16 +135,7 @@ let make = () => {
       ->Option.flatMap(r => r.metadata.prismJs)
       ->Option.mapOr("clike", p => p.language)}
     />
-    // TODO: allow running on key press too
-    <Button
-      onClick={_ =>
-        Option.map(runner, r =>
-          runProgram(r, program)->Promise.then(output =>
-            Promise.resolve(setOutput(_ => formatOutput(output)))
-          )
-        )->ignore}>
-      {"Run"->React.string}
-    </Button>
+    <Button onClick={execute}> {"Run"->React.string} </Button>
     // Outputs
     // -------
     // TODO: make prettier and better output styling
