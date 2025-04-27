@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "@glennsl/rescript-fetch": "^0.2.3",
-    "@harshsinghatz/react-key-bindings": "^0.0.5",
     "@rescript/core": "^1.6.1",
     "@rescript/react": "^0.12.1",
     "@ruby/3.4-wasm-wasi": "^2.7.1",
@@ -21,6 +20,7 @@
     "prismjs": "^1.30.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-keyboard": "^1.0.10",
     "react-simple-code-editor": "^0.14.1",
     "rescript": "^11.1.4"
   },

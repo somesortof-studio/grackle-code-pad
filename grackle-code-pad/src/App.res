@@ -6,24 +6,6 @@ module LocalStorage = {
   external getItem: string => option<string> = "getItem"
 }
 
-let getAllKeys: (dict<'a>, array<string>) => array<'a> = (dict, keys) =>
-  keys
-  ->Js.Array2.map(Js.Dict.get(dict))
-  ->Js.Array2.filter(Option.isSome)
-  ->Js.Array2.map(o => Option.getExn(o))
-
-module Keybindings = {
-  type keyboardKey = string
-  type keyboardKeysMap = dict<keyboardKey>
-  type keybindingProps = {cmd: array<keyboardKey>, callback: unit => unit}
-
-  @module("@harshsinghatz/react-key-bindings")
-  external keys: keyboardKeysMap = "keyboardKeys"
-
-  @module("@harshsinghatz/react-key-bindings")
-  external use: array<keybindingProps> => unit = "useKeybindings"
-}
-
 let selectionKey = "__selection__"
 
 let formatOutput = (r: result<string, string>): string => {
@@ -75,13 +57,6 @@ let make = () => {
 
   let execute = _ => runProgram(runner, program, o => setOutput(_ => formatOutput(o)))
 
-  Keybindings.use([
-    {
-      cmd: getAllKeys(Keybindings.keys, ["Control", "Shift", "Slash"]),
-      callback: execute,
-    },
-  ])
-
   <div className="p-6">
     <h1 className="text-xl font-bold"> {"🐦‍⬛ Grackle"->React.string} </h1>
     <Separator />
@@ -128,6 +103,7 @@ let make = () => {
     <CodeEditor
       _value={program}
       _onChange={program' => setProgram(_ => program')}
+      _onExecute={execute}
       _highlightGrammar={runner
       ->Option.flatMap(r => r.metadata.prismJs)
       ->Option.mapOr("clike", p => p.grammar)}
