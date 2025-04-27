@@ -7,8 +7,6 @@ module LocalStorage = {
 }
 
 let selectionKey = "__selection__"
-let runProgram = (runner: Runtimes.runtime, _program: string): promise<result<string, string>> =>
-  runner.eval(_program)
 
 let formatOutput = (r: result<string, string>): string => {
   switch r {
@@ -25,6 +23,18 @@ let loadRuby = (recordRunner: Runtimes.runtime => unit) => {
     Promise.resolve(None)
   })
 }
+
+let evaluate = (runner: Runtimes.runtime, _program: string): promise<result<string, string>> =>
+  runner.eval(_program)
+
+let runProgram = (
+  runner: option<Runtimes.runtime>,
+  program: string,
+  handle: result<string, string> => unit,
+) =>
+  Option.map(runner, r =>
+    evaluate(r, program)->Promise.then(output => Promise.resolve(handle(output)))
+  )->ignore
 
 @react.component
 let make = () => {
@@ -44,6 +54,8 @@ let make = () => {
     ->ignore
     None
   })
+
+  let execute = _ => runProgram(runner, program, o => setOutput(_ => formatOutput(o)))
 
   <div className="p-6">
     <h1 className="text-xl font-bold"> {"🐦‍⬛ Grackle"->React.string} </h1>
@@ -70,6 +82,7 @@ let make = () => {
     <Separator />
     <h2 className="text-xl font-semibold"> {"Editor"->React.string} </h2>
     <div className="cm-tooltipped group-hover:*:bg-gray-100">
+      // TODO: add a tooltip on running with hotkeys
       <p className="font-mono text-xs italic text-gray-400">
         {String.concat(
           ">> ",
@@ -90,6 +103,7 @@ let make = () => {
     <CodeEditor
       _value={program}
       _onChange={program' => setProgram(_ => program')}
+      _onExecute={execute}
       _highlightGrammar={runner
       ->Option.flatMap(r => r.metadata.prismJs)
       ->Option.mapOr("clike", p => p.grammar)}
@@ -97,16 +111,7 @@ let make = () => {
       ->Option.flatMap(r => r.metadata.prismJs)
       ->Option.mapOr("clike", p => p.language)}
     />
-    // TODO: allow running on key press too
-    <Button
-      onClick={_ =>
-        Option.map(runner, r =>
-          runProgram(r, program)->Promise.then(output =>
-            Promise.resolve(setOutput(_ => formatOutput(output)))
-          )
-        )->ignore}>
-      {"Run"->React.string}
-    </Button>
+    <Button onClick={execute}> {"Run"->React.string} </Button>
     // Outputs
     // -------
     // TODO: make prettier and better output styling
