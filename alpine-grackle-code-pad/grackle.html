@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LISP Chat REPL</title>
+  <!-- Pico CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="./grackle.css">
+  <!-- LIPS: LISP in JS -->
+  <script src="https://unpkg.com/lips@beta/dist/lips.min.js"></script>
+  <!-- Alpine.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <!-- Ruby WASM -->
+  <script src="https://cdn.jsdelivr.net/npm/@ruby/3.3-wasm-wasi@2.5.0/dist/browser.script.iife.js"></script>
+</head>
+
+<body x-data="replChatApp()">
+
+  <!-- Chat Header -->
+  <header class="chat-header">
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <strong style="font-size: 1rem;">🐦‍⬛ CODEPAD: Chat REPL</strong>
+      <small style="color: #666;" x-text="isLoading ? '• Initializing Engine...' : '• Ready'"></small>
+      <small style="color: #666;">• Light Mode</small>
+    </div>
+    <button class="outline secondary" style="width: auto; padding: 0.2rem 0.6rem; margin-bottom: 0; font-size: 0.8rem;"
+      @click="clearChat()">
+      Clear
+    </button>
+  </header>
+
+  <!-- Chat Log Area -->
+  <main class="chat-window" x-ref="chatWindow">
+    <template x-for="(turn, index) in history" :key="index">
+      <div class="chat-turn">
+
+        <!-- User Input Bubble -->
+        <div class="bubble bubble-user">
+          <div class="meta-tag">You</div>
+          <span><input type="checkbox" x-model="turn.included" /></span>
+          <span x-text="turn.input"></span>
+        </div>
+
+        <!-- REPL Output Bubble -->
+        <div class="bubble bubble-eval" :class="{ 'error': turn.isError }">
+          <div class="meta-tag">Evaluator</div>
+          <span x-text="turn.output"></span>
+        </div>
+
+      </div>
+    </template>
+  </main>
+
+  <!-- Chat Input Footer -->
+  <footer class="chat-input-bar">
+    <div class="input-wrapper">
+      <textarea x-model="currentInput" x-ref="inputField" class="chat-input"
+        :placeholder="isLoading ? 'Downloading Ruby WASM module...' : 'Type Ruby expression... e.g. [1, 2, 3].map { |n| n * 2 }'"
+        :disabled="isLoading" @keydown.enter.prevent="handleKeydown($event)" rows="1"></textarea>
+      <span><input type="checkbox" x-model="currentIncluded" /></span>
+      <button class="send-btn" :disabled="isLoading" @click="evalCurrent()">Send</button>
+    </div>
+    <small class="input-hint">
+      Press <strong>Enter</strong> to evaluate, <strong>Shift+Enter</strong> for multi-line block.
+    </small>
+  </footer>
+
+  <script>
+    document.addEventListener('alpine:init', () => {
+      Alpine.data('replChatApp', () => ({
+        currentInput: '',
+        currentIncluded: true,
+        isLoading: true,
+        rubyVM: null,
+        history: [],
+
+        async init() {
+          try {
+            // Instantiate the WASI WebAssembly Ruby VM
+            // Wait for window.initRubyVM defined in the module script
+            while (!window["rubyVM"]) {
+              await new Promise(resolve => setTimeout(resolve, 50));
+            }
+
+            this.rubyVM = window["rubyVM"];
+            this.isLoading = false;
+
+            // Seed initial greeting message
+            const baseMessage = "RUBY_DESCRIPTION;";
+            this.history.push({
+              input: baseMessage,
+              output: `=> ${this.rubyVM.eval(baseMessage).toString()}`,
+              isError: false,
+              included: false,
+            });
+          } catch (err) {
+            this.history.push({
+              input: "System Init",
+              output: `Failed to load Ruby WASM runtime: ${err.message}`,
+              isError: true,
+              included: false,
+            });
+            this.isLoading = false;
+          }
+        },
+
+        handleKeydown(event) {
+          if (event.shiftKey) {
+            this.currentInput += '\n';
+            return;
+          }
+          this.evalCurrent();
+        },
+
+        evalCurrent() {
+          const code = this.currentInput.trim();
+          if (!code || this.isLoading) return;
+
+          // Add history
+          const history = this.history
+            .filter(turn => turn.included)
+            .map(turn => turn.input)
+            .join("\n");
+
+          const program = history + "\n" + code;
+          console.log(program);
+
+          try {
+            // Execute Ruby expression inside WASM sandbox
+            const result = this.rubyVM.eval(program);
+
+            this.history.push({
+              input: code,
+              output: `=> ${result}`,
+              isError: false,
+              included: this.currentIncluded,
+            });
+          } catch (err) {
+            this.history.push({
+              input: code,
+              output: `${err.message}`,
+              isError: true,
+              included: false,
+            });
+          }
+
+          this.currentInput = '';
+
+          // Auto-scroll to bottom
+          this.$nextTick(() => {
+            const win = this.$refs.chatWindow;
+            win.scrollTop = win.scrollHeight;
+          });
+        },
+
+        clearChat() {
+          this.history = [];
+        }
+      }));
+    });
+  </script>
+</body>
+
+</html>

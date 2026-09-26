@@ -1,0 +1,9 @@
+{
+  "name": "Grackle Code Pad",
+  "description": "A simple code REPL for your browser",
+  "version": "1.0",
+  "manifest_version": 3,
+  "action": {
+    "default_popup": "grackle.html"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "grackle-code-pad",
+  "version": "0.0.1",
+  "description": "",
+  "license": "MIT",
+  "author": "Mitja O",
+  "type": "module",
+  "main": "src/index.js",
+  "directories": {
+    "src": "src",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "node --import ./test/setup.mjs --test './src/**/*.spec.*'"
+  }
+}
